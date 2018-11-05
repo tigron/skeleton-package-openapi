@@ -1,63 +1,19 @@
 <?php
 /**
- * Module Index
+ * Path class
  *
  * @author Christophe Gosiau <christophe@tigron.be>
  * @author David Vandemaele <david@tigron.be>
  * @author Gerry Demaret <gerry@tigron.be>
  */
 
-namespace Skeleton\Package\Openapi\Web\Module;
+namespace Skeleton\Package\Openapi;
 
-use \Skeleton\Core\Web\Module;
+class Path {
 
-class Json extends Module {
-
-	/**
-	 * Login required ?
-	 * Default = yes
-	 *
-	 * @access public
-	 * @var bool $login_required
-	 */
-	public $login_required = false;
-
-	/**
-	 * Template to use
-	 *
-	 * @access public
-	 * @var string $template
-	 */
-	public $template = false;
-
-	/**
-	 * Display method
-	 *
-	 * @access public
-	 */
-	public function display() {
-		$application = \Skeleton\Core\Application::get();
-
-		\Skeleton\Package\Openapi\Path::get_by_application($application);
-		die();
-
-		$config = $application->config;
-
-		$swagger = [];
-		$swagger['swagger'] = '2.0';
-		$swagger['paths'] = $this->generate_paths();
-
-		echo json_encode($swagger, JSON_PRETTY_PRINT);
-	}
-
-	private function generate_info() {
-
-	}
-
-	private function generate_paths() {
-		$application = \Skeleton\Core\Application::get();
+	public static function get_by_application(\Skeleton\Core\Application $application) {
 		$module_path = $application->module_path;
-		$files = $this->recursive_scan($module_path);
+		$files = self::recursive_scan($module_path);
 
 		$modules = [];
 		foreach ($files as $file) {
@@ -93,18 +49,13 @@ class Json extends Module {
 
 			$calls = $module->get_calls();
 print_R($calls);
-
+die();
 			foreach ($calls as $call) {
 
 			}
 		}
-
-
 	}
 
-	private function generate_definitions() {
-
-	}
 
 	/**
 	 * Recursive scan a directory
@@ -113,7 +64,7 @@ print_R($calls);
 	 * @param string $directory
 	 * @return array $files
 	 */
-	private function recursive_scan($directory) {
+	private static function recursive_scan($directory) {
 		$files = scandir($directory);
 		$result = [];
 		foreach ($files as $key => $value) {
@@ -123,7 +74,7 @@ print_R($calls);
 			}
 
 			if (is_dir($directory . '/' . $value)) {
-				$result = array_merge($result, $this->recursive_scan($directory . '/' . $value));
+				$result = array_merge($result, self::recursive_scan($directory . '/' . $value));
 				continue;
 			}
 
@@ -131,5 +82,6 @@ print_R($calls);
 		}
 		return $result;
 	}
+
 
 }

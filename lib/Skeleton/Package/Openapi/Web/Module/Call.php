@@ -38,6 +38,9 @@ abstract class Call extends Module {
 	 * @access public
 	 */
 	public function display() {
+
+
+
 		if (!isset($_REQUEST['call'])) {
 			$this->display_404();
 		}
@@ -81,39 +84,88 @@ abstract class Call extends Module {
 		$result = [];
 
 		foreach ($methods as $method) {
-			if (strpos($method->name, 'call_') !== 0) {
+			if ($method->isStatic()) {
 				continue;
 			}
-			$method_name = str_replace('call_', '', $method->name);
-			$comments = $method->getDocComment();
-			$factory  = \phpDocumentor\Reflection\DocBlockFactory::createInstance();
-			$docblock = $factory->create($comments);
+			$http_methods = [ 'get', 'post', 'put', 'delete' ];
 
-			$result[$method_name] = $docblock;
+			foreach ($http_methods as $http_method) {
+
+				if (strpos(strtolower($method->name), $http_method) !== 0) {
+					continue;
+				}
+
+				if ($method->getDeclaringClass()->getName() != get_class($this)) {
+					continue;
+				}
+
+				$call = [];
+				$parts = explode('_', $method->name);
+				$call['http_method'] = $parts[0];
+				if (isset($parts[1])) {
+					$call['action'] = $parts[1];
+				}
+				$path = $this->get_module_path();
+
+				// We will try to fake a url in order to match a route via revere rewrite
+				$params = [];
+				if (isset($call['action'])) {
+					$params['action'] = $call['action'];
+				}
+
+				$comments = $method->getDocComment();
+				$factory  = \phpDocumentor\Reflection\DocBlockFactory::createInstance();
+				$docblock = $factory->create($comments);
+				$docblock_params = $docblock->getTagsByName('param');
+
+				foreach ($docblock_params as $docblock_param) {
+					$params[$docblock_param->getVariableName()] = $docblock_param->getVariableName();
+				}
+
+				if (count($params) > 0) {
+					$call['path'] = \Skeleton\Core\Util::rewrite_reverse($path . '?' . http_build_query($params));
+				} else {
+					$call['path'] = \Skeleton\Core\Util::rewrite_reverse($path);
+				}
+
+				$call['summary'] = (string)$docblock->getSummary();
+				$call['description'] = (string)$docblock->getDescription();
+				$call['tags'] = $this->get_module_path();
+				$call['operationId'] = $this->get_module_path() . '/' . $method->name;
+				$call['parameters'] = [];
+				foreach ($docblock_params as $docblock_param) {
+					$param = [];
+					$param['name'] = $docblock_param->getVariableName();
+				}
+
+
+				$result[] = $call;
+			}
 		}
 		ksort($result);
 		return $result;
 	}
 
-	/**
-	 * Show 404
-	 *
-	 * @access private
-	 */
-	private function display_404() {
-		header("HTTP/1.0 404 Not Found");
-		echo '404: not found';
-		exit;
+
+
+	private static function recursive_scan($path) {
+		$files = scandir($directory);
+		$result = [];
+		foreach ($files as $key => $value) {
+			if ($value[0] == '.') {
+				unset($files[$key]);
+				continue;
+			}
+
+			if (is_dir($directory . '/' . $value)) {
+				$result = array_merge($result, $this->recursive_scan($directory . '/' . $value));
+				continue;
+			}
+
+			$result[] = $directory . '/' . $value;
+		}
+		return $result;
 	}
 
-	/**
-	 * Show 404
-	 *
-	 * @access private
-	 */
-	private function display_403() {
-		header("HTTP/1.0 403 Forbidden");
-		echo '403: no allowed';
-		exit;
-	}
+
 }
